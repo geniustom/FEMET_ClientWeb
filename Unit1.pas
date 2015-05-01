@@ -120,16 +120,17 @@ begin
   FEMET.LastStateStr:=FEMET.NowStateStr;
 end;
 
-procedure RefreshVitalData();
+function RefreshVitalData():bool;
 var
   VitalData:TstringList;
   Addr:string;
   ECGF:Textfile;
 begin
-
+    result:=false;
     VitalData:=TstringList.Create;
     VitalData.Delimiter:=',';
     VitalData.DelimitedText:=FEMET_GetVital('127.0.0.1');
+    if VitalData.Count=0 then exit;
     FEMET.SYS:=VitalData.Strings[0];
     FEMET.DIA:=VitalData.Strings[1];
     FEMET.HR:=VitalData.Strings[2];
@@ -153,7 +154,7 @@ begin
     if FEMET.HR='0' then FEMET.HR:='';
     if FEMET.GLU='0' then FEMET.GLU:='';
     if FEMET.SPO2='0' then FEMET.GLU:='';
-     
+    result:=true; 
 end;
 
 procedure TForm1.BarTimerTimer(Sender: TObject);
@@ -358,7 +359,7 @@ begin
 //----------------------------------------------血糖--------------------------------------
   if (pos('step2-1.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
       Edits := Docs.all.Item('glu', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -372,7 +373,7 @@ begin
 //----------------------------------------------血壓--------------------------------------
   if (pos('step2-2.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
       Edits := Docs.all.Item('sys', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -388,7 +389,7 @@ begin
 //----------------------------------------------體重--------------------------------------
   if (pos('step2-3.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
       Edits := Docs.all.Item('wt', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -400,7 +401,7 @@ begin
 //----------------------------------------------血氧--------------------------------------
   if (pos('step2-4.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
       Edits := Docs.all.Item('spo2', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -412,7 +413,7 @@ begin
 //----------------------------------------------EKG--------------------------------------
   if (pos('step2-5.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
       Edits := Docs.all.Item('ekg', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -424,7 +425,7 @@ begin
 //----------------------------------------CHECK EKG--------------------------------------
   if (pos('step2-6.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
       Edits := Docs.all.Item('ekg', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -448,7 +449,7 @@ begin
 //--------------------------------------- 健保卡帶入資料 ---------------------------------------
   if (pos('step5.php',Web.LocationURL)>0) then
   begin
-    RefreshVitalData();
+    if RefreshVitalData()=false then exit;
     Docs := WEB.OleObject.Document;
     try
     {
