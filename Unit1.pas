@@ -103,6 +103,10 @@ begin
   Web.Navigate(MAINADDR+'step1.php');
   SimStr:=TStringlist.Create;
   SimStr.Delimiter:=',';
+  BARData:=TstringList.Create;
+  BARData.Delimiter:=',';
+  VitalData:=TstringList.Create;
+  VitalData.Delimiter:=',';
 end;
 
 function CheckStateChange():boolean;
@@ -122,13 +126,10 @@ end;
 
 function RefreshVitalData():bool;
 var
-  VitalData:TstringList;
   Addr:string;
   ECGF:Textfile;
 begin
     result:=false;
-    VitalData:=TstringList.Create;
-    VitalData.Delimiter:=',';
     VitalData.DelimitedText:=FEMET_GetVital('127.0.0.1');
     if VitalData.Count=0 then exit;
     FEMET.SYS:=VitalData.Strings[0];
@@ -162,9 +163,6 @@ var
   Addr:string;
 begin
    BarTimer.Enabled:=false;
-
-   BARData:=TstringList.Create;
-   BARData.Delimiter:=',';
    BARData.DelimitedText:=FEMET_GetBARState('127.0.0.1');   
 
    RefreshVitalData();
@@ -236,9 +234,6 @@ var
   Addr:string;
 begin
    SIMTimer.Enabled:=false;
-
-   SIMData:=TstringList.Create;
-   SIMData.Delimiter:=',';
    SIMData.DelimitedText:=FEMET_GetSIMState('127.0.0.1');
    RefreshVitalData();
    FEMET.IDNO:=SIMData.Strings[5];
