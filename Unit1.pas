@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ScktComp, StdCtrls, OleCtrls, SHDocVw, ExtCtrls, ComCtrls,inifiles,
-  Buttons,printers;
+  Buttons,printers,xpman;
 
 type
   TForm1 = class(TForm)
@@ -131,7 +131,7 @@ var
 begin
     result:=false;
     VitalData.DelimitedText:=FEMET_GetVital('127.0.0.1');
-    if VitalData.Count=0 then exit;
+    if VitalData.Count<8 then exit;
     FEMET.SYS:=VitalData.Strings[0];
     FEMET.DIA:=VitalData.Strings[1];
     FEMET.HR:=VitalData.Strings[2];
@@ -342,6 +342,11 @@ begin
 
 end;
 
+procedure ERROUT(str:string);
+begin
+   //showmessage(str);
+end;
+
 procedure TForm1.Timer1Timer(Sender: TObject);
 var
   Docs, Edits: OleVariant;
@@ -354,23 +359,24 @@ begin
 //----------------------------------------------血糖--------------------------------------
   if (pos('step2-1.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
       Edits := Docs.all.Item('glu', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.GLU;
       if FEMET.GLU='' then Edits.Value := FEMET.WAGLU;
       if FEMET.WAGLU='' then Edits.Value := FEMET.GLU;
     except
+      ERROUT('血糖ERROR');
       exit;
     end;
   end;
 //----------------------------------------------血壓--------------------------------------
   if (pos('step2-2.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
       Edits := Docs.all.Item('sys', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.SYS;
       Edits := Docs.all.Item('dia', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
@@ -378,54 +384,59 @@ begin
       Edits := Docs.all.Item('hr', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.HR;
     except
+      ERROUT('血壓ERROR');
       exit;
     end;
   end;
 //----------------------------------------------體重--------------------------------------
   if (pos('step2-3.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
       Edits := Docs.all.Item('wt', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.WT;
     except
+      ERROUT('體重ERROR');
       exit;
     end;
   end;
 //----------------------------------------------血氧--------------------------------------
   if (pos('step2-4.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
       Edits := Docs.all.Item('spo2', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.spo2;
     except
+      ERROUT('血氧ERROR');
       exit;
     end;
   end;
 //----------------------------------------------EKG--------------------------------------
   if (pos('step2-5.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
       Edits := Docs.all.Item('ekg', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.ECG;
     except
+      ERROUT('EKG ERROR');
       exit;
     end;
   end;
 //----------------------------------------CHECK EKG--------------------------------------
   if (pos('step2-6.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
       Edits := Docs.all.Item('ekg', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       //Memo1.Text:= Edits.Value;
     except
+      ERROUT('CHECK EKG ERROR');
       exit;
     end;
   end;
@@ -444,9 +455,9 @@ begin
 //--------------------------------------- 健保卡帶入資料 ---------------------------------------
   if (pos('step5.php',Web.LocationURL)>0) then
   begin
-    if RefreshVitalData()=false then exit;
-    Docs := WEB.OleObject.Document;
     try
+      if RefreshVitalData()=false then exit;
+      Docs := WEB.OleObject.Document;
     {
       Edits := Docs.all.Item('sys', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.SYS;
@@ -469,6 +480,7 @@ begin
       if SimStr.Strings[3]='F' then Edits.Value := 2;
       SimStr.Clear;
     except
+      ERROUT('健保卡帶入資料 ERROR');
       exit;
     end;
   end;
@@ -481,6 +493,7 @@ begin
   begin
     PrintBTN.Visible:=false;
   end;
+
 end;
 
 procedure TForm1.BT_EndClick(Sender: TObject);
@@ -497,7 +510,9 @@ begin
   FEMET_ResetBAR('127.0.0.1');
   FEMET_ResetSIM('127.0.0.1');
   BT_End.Left:= Form1.ClientWidth- BT_End.ClientWidth -100;
-
+  //TopMost.Left:= Form1.ClientWidth- BT_End.ClientWidth -100;
+  //TopMost.Brush.Style := bsClear;
+  //SetWindowLong(TopMost.Handle, GWL_EXSTYLE, WS_EX_TRANSPARENT);
   for i:=0 to 300 do
   begin
      application.ProcessMessages;

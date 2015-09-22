@@ -1,9 +1,9 @@
 object Form1: TForm1
-  Left = 92
-  Top = 163
+  Left = 235
+  Top = 152
   Align = alClient
   AlphaBlendValue = 250
-  BorderIcons = []
+  BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsNone
   Caption = #36960#26481#37291#38651' '#36960#36317#29031#35703#20581#24247#24179#21488
   ClientHeight = 584
@@ -18,6 +18,7 @@ object Form1: TForm1
   FormStyle = fsStayOnTop
   OldCreateOrder = False
   Position = poScreenCenter
+  PrintScale = poPrintToFit
   WindowState = wsMaximized
   OnActivate = FormActivate
   OnCreate = FormCreate
@@ -841,7 +842,7 @@ object Form1: TForm1
   end
   object BT_End: TButton
     Left = 582
-    Top = 3
+    Top = 12
     Width = 129
     Height = 46
     Caption = #32080#26463#31243#24335
