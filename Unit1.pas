@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ScktComp, StdCtrls, OleCtrls, SHDocVw, ExtCtrls, ComCtrls,inifiles,
-  Buttons,printers,xpman;
+  Buttons,printers,xpman,shellapi;
 
 type
   TForm1 = class(TForm)
@@ -16,21 +16,29 @@ type
     CustomTimer: TTimer;
     PrintBTN: TBitBtn;
     Edit1: TEdit;
-    Timer1: TTimer;
+    PageTimer: TTimer;
     BT_End: TButton;
+    BT_Restart: TButton;
+    IdleTimer: TTimer;
+    Client: TClientSocket;
     procedure FormCreate(Sender: TObject);
     procedure BarTimerTimer(Sender: TObject);
     procedure LockTimerTimer(Sender: TObject);
     procedure SIMTimerTimer(Sender: TObject);
     procedure CustomTimerTimer(Sender: TObject);
     procedure PrintBTNClick(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
+    procedure PageTimerTimer(Sender: TObject);
     procedure BT_EndClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
+    procedure BT_RestartClick(Sender: TObject);
+    procedure IdleTimerTimer(Sender: TObject);
+    procedure ClientError(Sender: TObject; Socket: TCustomWinSocket;
+      ErrorEvent: TErrorEvent; var ErrorCode: Integer);
   private
     { Private declarations }
   public
     procedure GetInfo();
+    procedure PreCloseServicePlugin;
   end;
 
   DataState=record
@@ -51,6 +59,11 @@ var
   VitalData:TstringList;
   FEMET:DataState;
   MAINADDR:string;
+
+  IdleRestart:int64;      //config 閒置
+  IdleTimeInit:int64;         //從此程式開起到目前為止idle多久
+  vLastInputInfo: TLastInputInfo;
+
   SimStr:TStringlist; //多帶姓名，生日，性別
   function FEMET_ResetBAR(IP:string):boolean;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_GetBARState(IP:string):pchar;stdcall;far;external 'FEMET_Service.dll';
@@ -97,7 +110,11 @@ begin
   ConfigINI:=tinifile.create(DataPath+'Config.ini');
 //===========================================================SQL DB
   MAINADDR          := ConfigINI.ReadString('SETTING','ADDR','http://61.60.148.156:8080/cchwt_Client/client_vital_wt/');
+  IdleRestart       := ConfigINI.ReadInteger('SETTING','IdleRestart',3600);
+
   ConfigINI.WriteString('SETTING','ADDR',MAINADDR);
+  ConfigINI.WriteInteger('SETTING','IdleRestart',IdleRestart);
+
   //Web.Navigate('http://192.168.0.102:8080/client_vital_demo/index.php');
   //Web.Navigate('http://192.168.0.102:8080/client_vital_demo/index.php?id=L124017132&sys=120&dia=80&hr=70&glu=140&act=');
   Web.Navigate(MAINADDR+'step1.php');
@@ -107,6 +124,8 @@ begin
   BARData.Delimiter:=',';
   VitalData:=TstringList.Create;
   VitalData.Delimiter:=',';
+ 
+
 end;
 
 function CheckStateChange():boolean;
@@ -347,7 +366,7 @@ begin
    //showmessage(str);
 end;
 
-procedure TForm1.Timer1Timer(Sender: TObject);
+procedure TForm1.PageTimerTimer(Sender: TObject);
 var
   Docs, Edits: OleVariant;
 begin
@@ -498,9 +517,11 @@ end;
 
 procedure TForm1.BT_EndClick(Sender: TObject);
 begin
+  PreCloseServicePlugin;
+
   WinExec('command.com /c taskkill /F /T /IM FEMET_ServicePlugin.exe',sw_Hide);
   WinExec('taskkill /F /T /IM FEMET_ServicePlugin.exe',sw_Hide);
-  sleep(1000);
+  //Sleep(1000);
   CLOSE;
 end;
 
@@ -510,17 +531,105 @@ begin
   FEMET_ResetBAR('127.0.0.1');
   FEMET_ResetSIM('127.0.0.1');
   BT_End.Left:= Form1.ClientWidth- BT_End.ClientWidth -100;
+  BT_Restart.Left:= BT_End.left- BT_End.ClientWidth -10;
+  //status.Left:=BT_Restart.Left-BT_Restart.ClientWidth -10;
   //TopMost.Left:= Form1.ClientWidth- BT_End.ClientWidth -100;
   //TopMost.Brush.Style := bsClear;
   //SetWindowLong(TopMost.Handle, GWL_EXSTYLE, WS_EX_TRANSPARENT);
-  for i:=0 to 300 do
+  for i:=0 to 30 do
   begin
      application.ProcessMessages;
-     sleep(10);
+     sleep(100);
   end;
 
   //LockTImer.Enabled:=true;
-  Timer1.Enabled:=true;
+  PageTimer.Enabled:=true;
+  //IDLE計時
+  vLastInputInfo.cbSize := SizeOf(vLastInputInfo);
+  GetLastInputInfo(vLastInputInfo);
+  IdleTimeInit:=getTickCount-vLastInputInfo.dwTime;
+  IdleTimer.Enabled:=true;
+end;
+
+procedure TForm1.PreCloseServicePlugin;
+var i:integer;
+begin
+  Client.Close;
+  Client.Host:='127.0.0.1';
+  Client.Open;
+
+  for i:=0 to 100 do
+  begin
+     sleep(100);
+     if Client.Socket.Connected then break;
+     application.processmessages;
+  end;
+
+  if Client.Socket.Connected then
+  begin
+    Client.Socket.SendText('HIDEICON');
+    Client.Close;
+  end;
+end;
+
+procedure TForm1.BT_RestartClick(Sender: TObject);
+var
+  bat:TStringList;
+  i:integer;
+begin
+  BarTimer.Enabled:=false;
+  SimTimer.Enabled:=false;
+  CustomTimer.Enabled:=false;
+
+  PreCloseServicePlugin;
+
+  bat:=TStringList.Create;
+
+  bat.Add('command.com /c taskkill /F /IM FEMET_ServicePlugin.exe');
+  bat.Add('taskkill /F /IM FEMET_ServicePlugin.exe');
+  //bat.Add('timeout /t 2');
+
+  bat.Add('command.com /c taskkill /F /IM FEMET_ClientWeb.exe');
+  bat.Add('taskkill /F /IM FEMET_ClientWeb.exe');
+  bat.Add('timeout /t 2');
+
+  bat.Add(ExtractFileDir(application.ExeName)+'\FEMET_ServicePlugin.exe');
+  //bat.Add('timeout /t 1');
+  bat.SaveToFile(ExtractFileDir(application.ExeName)+'\run.cmd');
+
+  WinExec(pchar('cmd /c "'+ExtractFileDir(application.ExeName)+'\run.cmd"'),SW_Hide);
+  //shellExecute(0,'open',pchar(ExtractFileDir(application.ExeName)+'\run.cmd'),nil,nil,SW_SHOWNORMAL);
+{
+  WinExec('command.com /c taskkill /F /T /IM FEMET_ServicePlugin.exe',sw_Hide);
+  WinExec('taskkill /F /T /IM FEMET_ServicePlugin.exe',sw_Hide);
+  sleep(1000);
+  WinExec(pchar(ExtractFileDir(application.ExeName)+'\FEMET_ServicePlugin.exe'),0);
+}
+end;
+
+procedure TForm1.IdleTimerTimer(Sender: TObject);
+begin
+  IdleTimer.Enabled:=false;
+  vLastInputInfo.cbSize := SizeOf(vLastInputInfo);
+  GetLastInputInfo(vLastInputInfo);
+  //Edit1.Text:=Format('初始閒置:%d,目前已閒置:%d,Idle重啟:%d',[IdleTimeInit,((getTickCount-vLastInputInfo.dwTime-IdleTimeInit) div 1000),IdleRestart]);
+  //status.Text:=Format('已閒置: %d 秒', [(getTickCount-vLastInputInfo.dwTime-IdleTimeInit) div 1000]);
+  application.processmessages;
+  if ((getTickCount-vLastInputInfo.dwTime-IdleTimeInit) div 1000)>IdleRestart then
+  begin
+    //showmessage('Restart');
+    BT_Restart.Click;
+  end
+  else
+  begin
+    IdleTimer.Enabled:=true;
+  end;
+end;
+
+procedure TForm1.ClientError(Sender: TObject; Socket: TCustomWinSocket;
+  ErrorEvent: TErrorEvent; var ErrorCode: Integer);
+begin
+   ErrorCode:=0;
 end;
 
 end.

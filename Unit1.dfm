@@ -1,6 +1,6 @@
 object Form1: TForm1
-  Left = 235
-  Top = 152
+  Left = 226
+  Top = 127
   Align = alClient
   AlphaBlendValue = 250
   BorderIcons = [biSystemMenu, biMinimize]
@@ -19,6 +19,7 @@ object Form1: TForm1
   OldCreateOrder = False
   Position = poScreenCenter
   PrintScale = poPrintToFit
+  Visible = True
   WindowState = wsMaximized
   OnActivate = FormActivate
   OnCreate = FormCreate
@@ -849,6 +850,15 @@ object Form1: TForm1
     TabOrder = 3
     OnClick = BT_EndClick
   end
+  object BT_Restart: TButton
+    Left = 447
+    Top = 12
+    Width = 129
+    Height = 46
+    Caption = #37325#21855#31243#24335
+    TabOrder = 4
+    OnClick = BT_RestartClick
+  end
   object BarTimer: TTimer
     Enabled = False
     Interval = 2000
@@ -877,10 +887,24 @@ object Form1: TForm1
     Left = 39
     Top = 255
   end
-  object Timer1: TTimer
+  object PageTimer: TTimer
     Enabled = False
-    OnTimer = Timer1Timer
+    OnTimer = PageTimerTimer
     Left = 594
     Top = 189
+  end
+  object IdleTimer: TTimer
+    Enabled = False
+    OnTimer = IdleTimerTimer
+    Left = 594
+    Top = 240
+  end
+  object Client: TClientSocket
+    Active = False
+    ClientType = ctNonBlocking
+    Port = 55555
+    OnError = ClientError
+    Left = 597
+    Top = 141
   end
 end
