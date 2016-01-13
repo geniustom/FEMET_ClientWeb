@@ -65,11 +65,13 @@ var
   vLastInputInfo: TLastInputInfo;
 
   SimStr:TStringlist; //多帶姓名，生日，性別
+  function FEMET_Init(IP:string):boolean;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_ResetBAR(IP:string):boolean;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_GetBARState(IP:string):pchar;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_GetVital(IP:string):pchar;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_ResetSIM(IP:string):boolean;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_GetSIMState(IP:string):pchar;stdcall;far;external 'FEMET_Service.dll';
+  procedure FEMET_Release();stdcall;far;external 'FEMET_Service.dll';
 
 implementation
 
@@ -125,7 +127,7 @@ begin
   VitalData:=TstringList.Create;
   VitalData.Delimiter:=',';
  
-
+  FEMET_Init('127.0.0.1');
 end;
 
 function CheckStateChange():boolean;
