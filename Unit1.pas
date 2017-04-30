@@ -63,6 +63,7 @@ var
   IdleRestart:int64;      //config 閒置
   IdleTimeInit:int64;         //從此程式開起到目前為止idle多久
   vLastInputInfo: TLastInputInfo;
+  Measure_Errmsg:string;
 
   SimStr:TStringlist; //多帶姓名，生日，性別
   function FEMET_Init(IP:string):boolean;stdcall;far;external 'FEMET_Service.dll';
@@ -71,6 +72,7 @@ var
   function FEMET_GetVital(IP:string):pchar;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_ResetSIM(IP:string):boolean;stdcall;far;external 'FEMET_Service.dll';
   function FEMET_GetSIMState(IP:string):pchar;stdcall;far;external 'FEMET_Service.dll';
+  procedure FEMET_BPMeasure();stdcall;far;external 'FEMET_Service.dll';
   procedure FEMET_Release();stdcall;far;external 'FEMET_Service.dll';
 
 implementation
@@ -152,7 +154,7 @@ var
 begin
     result:=false;
     VitalData.DelimitedText:=FEMET_GetVital('127.0.0.1');
-    if VitalData.Count<8 then exit;
+    if VitalData.Count<9 then exit;
     FEMET.SYS:=VitalData.Strings[0];
     FEMET.DIA:=VitalData.Strings[1];
     FEMET.HR:=VitalData.Strings[2];
@@ -161,6 +163,7 @@ begin
     FEMET.WT:=VitalData.Strings[5];
     FEMET.SPO2:=VitalData.Strings[6];
     if VitalData.Strings[7]<>'' then FEMET.SPO2:=VitalData.Strings[7];
+    if VitalData.Strings[8]<>'' then Measure_Errmsg:=VitalData.Strings[8];
 
     try
       assignfile(ECGF,ExtractFileDir(application.ExeName)+'\ECG.txt');
@@ -371,6 +374,7 @@ end;
 procedure TForm1.PageTimerTimer(Sender: TObject);
 var
   Docs, Edits: OleVariant;
+  tmpmsg:string;
 begin
 //----------------------------------------------血糖--------------------------------------
   if (pos('step1.php',Web.LocationURL)>0) then
@@ -404,6 +408,20 @@ begin
       Edits.Value := FEMET.DIA;
       Edits := Docs.all.Item('hr', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
       Edits.Value := FEMET.HR;
+      Edits := Docs.all.Item('bp_measure_start', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
+      if Edits.Value=1 then
+      begin
+         FEMET_BPMeasure();
+         Edits.Value := 0;
+      end;
+      Edits := Docs.all.Item('bp_measure_errmsg', 0);  //Docs.Forms.item('form', 0).all.Item('glu', 0);
+      if Measure_Errmsg<>'' then
+      begin
+         tmpmsg:=Measure_Errmsg;
+         Measure_Errmsg:='';
+         Edits.Value := tmpmsg;
+      end;
+
     except
       ERROUT('血壓ERROR');
       exit;
